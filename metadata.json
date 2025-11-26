@@ -1,0 +1,5 @@
+{
+  "name": "BabyName AI (Mongkol)",
+  "description": "Smart baby nickname generator combining parents' names and astrological auspiciousness using Gemini AI.",
+  "requestFramePermissions": []
+}
