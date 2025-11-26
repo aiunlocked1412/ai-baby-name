@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Baby, Calendar, User, Wand2, RefreshCw, Heart, AlertCircle } from 'lucide-react';
+import { Baby, Calendar, User, Wand2, RefreshCw, Heart, AlertCircle, Settings, X, Key } from 'lucide-react';
 import { FormData, Gender, GeminiResponse } from './types';
 import { generateNames } from './services/geminiService';
 import { InputField } from './components/InputField';
@@ -17,6 +17,28 @@ const App: React.FC = () => {
   const [result, setResult] = useState<GeminiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+
+  React.useEffect(() => {
+    const storedKey = localStorage.getItem('GEMINI_API_KEY');
+    if (storedKey) {
+      setApiKey(storedKey);
+    } else {
+      // Fallback to env if available, but don't save to local storage automatically to avoid confusion
+      // unless user explicitly saves it.
+      // actually, let's just use env as initial state if local is empty
+      if (process.env.GEMINI_API_KEY) {
+        setApiKey(process.env.GEMINI_API_KEY);
+      }
+    }
+  }, []);
+
+  const handleSaveKey = (key: string) => {
+    setApiKey(key);
+    localStorage.setItem('GEMINI_API_KEY', key);
+    setShowSettings(false);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
@@ -35,12 +57,13 @@ const App: React.FC = () => {
     setResult(null);
 
     try {
-      const data = await generateNames(formData);
+      const data = await generateNames(formData, apiKey);
       setResult(data);
     } catch (err: any) {
       console.error(err);
       if (err.message === "API_KEY_MISSING") {
-        setError("ไม่พบ API Key: กรุณาตั้งค่า 'API_KEY' ใน Environment Variables หรือไฟล์ .env ของคุณ");
+        setError("ไม่พบ API Key: กรุณากดปุ่มตั้งค่า (รูปฟันเฟือง) เพื่อใส่ Gemini API Key");
+        setShowSettings(true);
       } else {
         setError("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI กรุณาลองใหม่อีกครั้ง");
       }
@@ -65,20 +88,84 @@ const App: React.FC = () => {
               <p className="text-xs text-slate-500 font-medium">ตั้งชื่อลูกมงคลด้วย AI</p>
             </div>
           </div>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="p-2 text-slate-400 hover:text-primary hover:bg-indigo-50 rounded-full transition-colors"
+            title="ตั้งค่า API Key"
+          >
+            <Settings size={24} />
+          </button>
         </div>
       </header>
 
+      {/* Settings Modal */}
+      {
+        showSettings && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-fade-in-up">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-slate-800 flex items-center">
+                  <Settings className="mr-2 text-primary" /> ตั้งค่า API Key
+                </h3>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Gemini API Key
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Key size={18} className="text-slate-400" />
+                  </div>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="วาง API Key ของคุณที่นี่"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm font-mono"
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  คีย์ของคุณจะถูกบันทึกใน Browser (LocalStorage) เท่านั้น ไม่มีการส่งไปที่อื่น
+                </p>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="flex-1 py-3 px-4 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={() => handleSaveKey(apiKey)}
+                  className="flex-1 py-3 px-4 bg-primary text-white font-medium rounded-xl hover:bg-primary/90 shadow-lg shadow-primary/30 transition-all"
+                >
+                  บันทึก
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
       <main className="max-w-5xl mx-auto px-4 pt-8">
-        
+
         <div className="grid md:grid-cols-12 gap-8">
-          
+
           {/* Form Section */}
           <div className="md:col-span-4 lg:col-span-4">
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl p-6 shadow-xl border border-white sticky top-24">
               <h2 className="text-xl font-bold mb-6 flex items-center text-slate-700">
                 <User className="mr-2 text-primary" /> ข้อมูลสำหรับวิเคราะห์
               </h2>
-              
+
               <form onSubmit={handleSubmit}>
                 <InputField
                   id="fatherName"
@@ -117,7 +204,7 @@ const App: React.FC = () => {
                   icon={<Baby size={18} />}
                 />
 
-                 <div className="mb-6">
+                <div className="mb-6">
                   <label htmlFor="style" className="block text-sm font-medium text-slate-700 mb-1 pl-1">
                     สไตล์ชื่อที่ชอบ
                   </label>
@@ -173,7 +260,7 @@ const App: React.FC = () => {
               <div className="animate-fade-in-up">
                 <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-6 rounded-3xl shadow-lg mb-8 relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-8 opacity-10">
-                     <Wand2 size={120} />
+                    <Wand2 size={120} />
                   </div>
                   <h2 className="text-2xl font-bold mb-2">บทวิเคราะห์จาก AI</h2>
                   <p className="text-indigo-100 leading-relaxed max-w-2xl relative z-10">
@@ -188,7 +275,7 @@ const App: React.FC = () => {
                 </div>
               </div>
             )}
-            
+
             {loading && (
               <div className="grid gap-6 md:grid-cols-2 animate-pulse">
                 {[1, 2, 3, 4].map((i) => (
@@ -199,7 +286,7 @@ const App: React.FC = () => {
           </div>
         </div>
       </main>
-    </div>
+    </div >
   );
 };
 

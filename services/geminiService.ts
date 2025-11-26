@@ -1,10 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { FormData, GeminiResponse } from '../types';
 
-export const generateNames = async (data: FormData): Promise<GeminiResponse> => {
-  // Initialize inside the function to prevent crash on module load if key is missing
-  const apiKey = process.env.API_KEY;
-  
+export const generateNames = async (data: FormData, apiKey: string): Promise<GeminiResponse> => {
   if (!apiKey) {
     throw new Error("API_KEY_MISSING");
   }
